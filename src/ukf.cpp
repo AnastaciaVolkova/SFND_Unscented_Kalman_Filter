@@ -21,10 +21,10 @@ UKF::UKF() {
   P_ = MatrixXd(5, 5);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 30;
+  std_a_ = 1.67; // 2*sigma = 3.33 Assume 95% cars decrease speed from 60 km/h to 0 in 5 sec (and vice versa)
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 30;
+  std_yawdd_ = 0.08; //Assume 95% cars change angle ~10 grad/s^2
   
   /**
    * DO NOT MODIFY measurement noise values below.
