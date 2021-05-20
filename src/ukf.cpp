@@ -209,4 +209,76 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
    * covariance, P_.
    * You can also calculate the radar NIS, if desired.
    */
+  int n_z = 3; // Dimension of radar measurement space (rho, phi, rho_d).
+
+  // Matrix for sigma points in measurement space.
+  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+
+  VectorXd z_pred = VectorXd(n_z); // Predicted measurement.
+
+  MatrixXd S = MatrixXd(n_z,n_z); // Measurement covariance,
+
+  // Transform sigma points into measurement space.
+  for (int i = 0; i < 2*n_aug_+1; i++){
+      double p_x = Xsig_pred_(0, i);
+      double p_y = Xsig_pred_(1, i);
+      double v =  Xsig_pred_(2, i);
+      double psi = Xsig_pred_(3, i);
+      double psi_d = Xsig_pred_(4, i);
+
+      double rho = sqrtf(p_x*p_x + p_y*p_y);
+      double phi  = atan2(p_y, p_x);
+      double rho_d = (p_x*cos(psi)*v + p_y*sin(psi)*v)/rho;
+
+      Zsig(0, i) = rho;
+      Zsig(1, i) = phi;
+      Zsig(2, i) = rho_d;
+  }
+
+  // Calculate predicted measurement.
+  z_pred = (Zsig.array().rowwise() * weights_.transpose().array()).rowwise().sum();
+
+  // Calculate covariance of predicted measurements.
+  S.fill(0);
+  for (int i = 0; i < 2*n_aug_+1; i++){
+      VectorXd diff = Zsig.col(i) - z_pred;
+      while (diff(1)>M_PI) diff(1) -= 2*M_PI;  // Angle should be [-pi, pi].
+      while (diff(1)<-M_PI) diff(1) += 2*M_PI;  // Angle should be [-pi, pi].
+      S += weights_(i)*diff*diff.transpose();
+  }
+
+  MatrixXd R = MatrixXd(n_z, n_z);
+  R  << std_radr_*std_radr_, 0, 0,
+  0, std_radphi_*std_radphi_, 0,
+  0, 0, std_radrd_*std_radrd_;
+  S = S + R;
+
+  // Cross correlation matrix Tc.
+  MatrixXd Tc = MatrixXd(n_x_, n_z);
+
+  Tc.fill(0);
+  for (int i = 0; i < 2*n_aug_+1; i++){
+      VectorXd diff_x = Xsig_pred_.col(i) - x_;
+      VectorXd diff_z = Zsig.col(i) - z_pred;
+      while (diff_x(1) < -M_PI) diff_x(1)=+2*M_PI;
+      while (diff_x(1) > M_PI) diff_x(1)=-2*M_PI;
+      while (diff_z(1) < -M_PI) diff_z(1)=+2*M_PI;
+      while (diff_z(1) > M_PI) diff_z(1)=-2*M_PI;
+      Tc += weights_(i) * diff_x * diff_z.transpose();
+  }
+
+  // Kalman gain K.
+  MatrixXd K(n_x_, n_z);
+  K = Tc * S.inverse();
+
+  // Update state mean and covariance matrix.
+  VectorXd z(3);
+  z << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1], meas_package.raw_measurements_[2];
+  VectorXd z_diff = z-z_pred;
+  while (z_diff(1) < -M_PI) z_diff(1)=+2*M_PI;
+  while (z_diff(1) > M_PI) z_diff(1)=-2*M_PI;
+
+  x_ = x_ + K*z_diff;
+
+  P_ = P_ - K*S*K.transpose();
 }
