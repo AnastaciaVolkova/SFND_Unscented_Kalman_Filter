@@ -64,6 +64,9 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
    * measurements.
    */
   if (!is_initialized_) {
+    n_x_ = 5;
+    n_aug_ = n_x_ + 2; // Take into account process noise.
+    x_ = VectorXd(n_x_);
     if (meas_package.sensor_type_ == MeasurementPackage::RADAR){
       use_laser_ = false;
       use_radar_ = true;
@@ -75,6 +78,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
       // Transform radar measurements to state vector.
       // state vector: [pos1 pos2 vel_abs yaw_angle yaw_rate] in SI units and rad
+
       x_ << rho*cos(phi), rho*sin(phi), rho_d, phi, 0;
 
       // Set state covariance matrix.
@@ -85,7 +89,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
       P_(3, 3) = std_radphi_ * std_radphi_;
       P_(4, 4) = P_(3, 3);
     } else if (meas_package.sensor_type_ == MeasurementPackage::LASER){
-      x_ << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1];
+      x_ << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1], 0, 0, 0;
       P_.fill(0.0);
       P_(0, 0) = std_laspx_*std_laspx_;
       P_(1, 1) = std_laspy_*std_laspy_;
@@ -94,8 +98,6 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     }
     is_initialized_ = true;
     time_us_ = meas_package.timestamp_;
-    n_x_ = x_.size();
-    n_aug_ = n_x_ + 2; // Take into account process noise.
     lambda_ = 3 - n_aug_; // Define spreading parameter.
   } else {
     double dt = static_cast<double>(time_us_ - meas_package.timestamp_)*1e-6;
@@ -117,10 +119,10 @@ void UKF::Prediction(double delta_t) {
    */
 
   // Augmented state vector.
-  VectorXd x_aug = VectorXd(7);
+  VectorXd x_aug = VectorXd(n_aug_);
 
   // Augmented state covariance.
-  MatrixXd P_aug = MatrixXd(7, 7);
+  MatrixXd P_aug = MatrixXd(n_aug_, n_aug_);
 
   // Sigma points matrix.
   MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
@@ -151,7 +153,7 @@ void UKF::Prediction(double delta_t) {
   weights_.tail(2*n_aug_).fill(0.5/(lambda_ + n_aug_));
 
   // Matrix with predicted sigma points as columns.
-  MatrixXd Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
+  Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
   // Predict sigma points (map them on target Gaussian after passing through non-linear function).
   for (int i = 0; i < 2*n_aug_+1; i++){ // Go through columns
       double px = Xsig_aug(0, i);
