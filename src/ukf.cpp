@@ -200,6 +200,58 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
    * covariance, P_.
    * You can also calculate the lidar NIS, if desired.
    */
+  int n_z = 2; // Dimension of lidar measurement space (x, y).
+
+  // Matrix for sigma points in measurement space.
+  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+
+  VectorXd z_pred = VectorXd(n_z); // Predicted measurement.
+
+  MatrixXd S = MatrixXd(n_z,n_z); // Measurement covariance.
+
+  // Transform sigma points into measurement space.
+  for (int i = 0; i < 2*n_aug_+1; i++){
+      Zsig(0, i) = Xsig_pred_(0, i);
+      Zsig(1, i) = Xsig_pred_(1, i);
+  }
+
+  // Calculate predicted measurement.
+  z_pred = (Zsig.array().rowwise() * weights_.transpose().array()).rowwise().sum();
+
+  // Calculate covariance of predicted measurements.
+  S.fill(0);
+  for (int i = 0; i < 2*n_aug_+1; i++){
+      VectorXd diff = Zsig.col(i) - z_pred;
+      S += weights_(i)*diff*diff.transpose();
+  }
+
+  MatrixXd R = MatrixXd(n_z, n_z);
+  R  << std_laspx_*std_laspx_, 0,
+  std_laspy_*std_laspy_, 0,
+  S = S + R;
+
+  // Cross correlation matrix Tc.
+  MatrixXd Tc = MatrixXd(n_x_, n_z);
+
+  Tc.fill(0);
+  for (int i = 0; i < 2*n_aug_+1; i++){
+      VectorXd diff_x = Xsig_pred_.col(i) - x_;
+      VectorXd diff_z = Zsig.col(i) - z_pred;
+      Tc += weights_(i) * diff_x * diff_z.transpose();
+  }
+
+  // Kalman gain K.
+  MatrixXd K(n_x_, n_z);
+  K = Tc * S.inverse();
+
+  // Update state mean and covariance matrix.
+  VectorXd z(2);
+  z << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1];
+  VectorXd z_diff = z-z_pred;
+
+  x_ = x_ + K*z_diff;
+
+  P_ = P_ - K*S*K.transpose();
 }
 
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
@@ -216,7 +268,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
   VectorXd z_pred = VectorXd(n_z); // Predicted measurement.
 
-  MatrixXd S = MatrixXd(n_z,n_z); // Measurement covariance,
+  MatrixXd S = MatrixXd(n_z,n_z); // Measurement covariance.
 
   // Transform sigma points into measurement space.
   for (int i = 0; i < 2*n_aug_+1; i++){
