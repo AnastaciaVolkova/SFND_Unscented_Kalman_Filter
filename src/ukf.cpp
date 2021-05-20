@@ -146,9 +146,9 @@ void UKF::Prediction(double delta_t) {
   }
 
   // Set weights for each sigma point.
-  VectorXd weights = VectorXd(2*n_aug_+1);
-  weights(0) = lambda_/(lambda_+n_aug_);
-  weights.tail(2*n_aug_).fill(0.5/(lambda_ + n_aug_));
+  weights_ = VectorXd(2*n_aug_+1);
+  weights_(0) = lambda_/(lambda_+n_aug_);
+  weights_.tail(2*n_aug_).fill(0.5/(lambda_ + n_aug_));
 
   // Matrix with predicted sigma points as columns.
   MatrixXd Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
@@ -180,7 +180,7 @@ void UKF::Prediction(double delta_t) {
   }
 
   // Predict state.
-  x_ = (Xsig_pred_.array().rowwise() * weights.transpose().array()).rowwise().sum();
+  x_ = (Xsig_pred_.array().rowwise() * weights_.transpose().array()).rowwise().sum();
 
   // Predict state covariance matrix.
   P_.fill(0);
@@ -189,7 +189,7 @@ void UKF::Prediction(double delta_t) {
     VectorXd diff = Xsig_pred_.col(i) - x_;
     while(diff(3)>M_PI) diff(3) -= 2*M_PI; // Angle should be [-pi, pi].
     while(diff(3)<-M_PI) diff(3) += 2*M_PI;  // Angle should be [-pi, pi].
-    P_ += weights(i)*diff*diff.transpose();
+    P_ += weights_(i)*diff*diff.transpose();
   }
 }
 
