@@ -96,6 +96,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     time_us_ = meas_package.timestamp_;
     n_x_ = x_.size();
     n_aug_ = n_x_ + 2; // Take into account process noise.
+    lambda_ = 3 - n_aug_; // Define spreading parameter.
   } else {
     double dt = static_cast<double>(time_us_ - meas_package.timestamp_)*1e-6;
     Prediction(dt); // Predict state based on process model.
@@ -114,6 +115,82 @@ void UKF::Prediction(double delta_t) {
    * Modify the state vector, x_. Predict sigma points, the state,
    * and the state covariance matrix.
    */
+
+  // Augmented state vector.
+  VectorXd x_aug = VectorXd(7);
+
+  // Augmented state covariance.
+  MatrixXd P_aug = MatrixXd(7, 7);
+
+  // Sigma points matrix.
+  MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
+
+  // Copy sate vector and leave tail as zero.
+  x_aug.head(n_x_) = x_;
+  x_aug(n_x_) = 0;
+  x_aug(n_x_+1) = 0;
+
+  // Copy state covariance and augment it with process noise.
+  P_aug.topLeftCorner(n_x_, n_x_) = P_;
+  P_aug(n_x_, n_x_) = std_a_*std_a_;
+  P_aug(n_x_+1, n_x_+1) = std_yawdd_*std_yawdd_;
+
+  // Square root matrix of covariance matrix.
+  MatrixXd P_aug_sqrt = P_aug.llt().matrixL();
+
+  // Create augmented sigma points.
+  Xsig_aug.col(0) = x_aug;
+  for (int c = 1; c <= n_aug_; c++){
+    Xsig_aug.col(c) = x_aug + sqrt(lambda_+n_aug_)*P_aug_sqrt.col(c-1);
+    Xsig_aug.col(c + n_aug_) = x_aug - sqrt(lambda_+n_aug_)*P_aug_sqrt.col(c-1);
+  }
+
+  // Set weights for each sigma point.
+  VectorXd weights = VectorXd(2*n_aug_+1);
+  weights(0) = lambda_/(lambda_+n_aug_);
+  weights.tail(2*n_aug_).fill(0.5/(lambda_ + n_aug_));
+
+  // Matrix with predicted sigma points as columns.
+  MatrixXd Xsig_pred = MatrixXd(n_x_, 2 * n_aug_ + 1);
+  // Predict sigma points (map them on target Gaussian after passing through non-linear function).
+  for (int i = 0; i < 2*n_aug_+1; i++){ // Go through columns
+      double px = Xsig_aug(0, i);
+      double py = Xsig_aug(1, i);
+      double v =  Xsig_aug(2, i);
+      double phi =  Xsig_aug(3, i);
+      double phid = Xsig_aug(4, i);
+      double nu_a = Xsig_aug(5, i);
+      double nu_psid = Xsig_aug(6, i);
+      if (phid > 1e-3){ // Check if phi velocity is zero.
+        Xsig_pred(0, i) = px + (v/phid)*(sin(phi+phid*delta_t)-sin(phi));
+        Xsig_pred(1, i) = py + (v/phid)*(-cos(phi+phid*delta_t)+cos(phi));
+      } else {
+        Xsig_pred(0, i) = px + v*cos(phi)*delta_t;
+        Xsig_pred(1, i) = py + v*sin(phi)*delta_t;
+      }
+      Xsig_pred(2, i) = v;
+      Xsig_pred(3, i) = phi + phid*delta_t;
+      Xsig_pred(4, i) = phid;
+
+      Xsig_pred(0, i) += 0.5*delta_t*delta_t*cos(phi)*nu_a;
+      Xsig_pred(1, i) += 0.5*delta_t*delta_t*sin(phi)*nu_a;
+      Xsig_pred(2, i) += delta_t * nu_a;
+      Xsig_pred(3, i) += 0.5*delta_t*delta_t*nu_psid;
+      Xsig_pred(4, i) += delta_t * nu_psid;
+  }
+
+  // Predict state.
+  x_ = (Xsig_pred_.array().rowwise() * weights.transpose().array()).rowwise().sum();
+
+  // Predict state covariance matrix.
+  P_.fill(0);
+  for (int i = 0; i < 2*n_aug_+1; i++)
+  {
+    VectorXd diff = Xsig_pred.col(i) - x_;
+    while(diff(3)>M_PI) diff(3) -= 2*M_PI; // Angle should be [-pi, pi].
+    while(diff(3)<-M_PI) diff(3) += 2*M_PI;  // Angle should be [-pi, pi].
+    P_ += weights(i)*diff*diff.transpose();
+  }
 }
 
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
