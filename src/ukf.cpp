@@ -151,7 +151,7 @@ void UKF::Prediction(double delta_t) {
   weights.tail(2*n_aug_).fill(0.5/(lambda_ + n_aug_));
 
   // Matrix with predicted sigma points as columns.
-  MatrixXd Xsig_pred = MatrixXd(n_x_, 2 * n_aug_ + 1);
+  MatrixXd Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
   // Predict sigma points (map them on target Gaussian after passing through non-linear function).
   for (int i = 0; i < 2*n_aug_+1; i++){ // Go through columns
       double px = Xsig_aug(0, i);
@@ -162,21 +162,21 @@ void UKF::Prediction(double delta_t) {
       double nu_a = Xsig_aug(5, i);
       double nu_psid = Xsig_aug(6, i);
       if (phid > 1e-3){ // Check if phi velocity is zero.
-        Xsig_pred(0, i) = px + (v/phid)*(sin(phi+phid*delta_t)-sin(phi));
-        Xsig_pred(1, i) = py + (v/phid)*(-cos(phi+phid*delta_t)+cos(phi));
+        Xsig_pred_(0, i) = px + (v/phid)*(sin(phi+phid*delta_t)-sin(phi));
+        Xsig_pred_(1, i) = py + (v/phid)*(-cos(phi+phid*delta_t)+cos(phi));
       } else {
-        Xsig_pred(0, i) = px + v*cos(phi)*delta_t;
-        Xsig_pred(1, i) = py + v*sin(phi)*delta_t;
+        Xsig_pred_(0, i) = px + v*cos(phi)*delta_t;
+        Xsig_pred_(1, i) = py + v*sin(phi)*delta_t;
       }
-      Xsig_pred(2, i) = v;
-      Xsig_pred(3, i) = phi + phid*delta_t;
-      Xsig_pred(4, i) = phid;
+      Xsig_pred_(2, i) = v;
+      Xsig_pred_(3, i) = phi + phid*delta_t;
+      Xsig_pred_(4, i) = phid;
 
-      Xsig_pred(0, i) += 0.5*delta_t*delta_t*cos(phi)*nu_a;
-      Xsig_pred(1, i) += 0.5*delta_t*delta_t*sin(phi)*nu_a;
-      Xsig_pred(2, i) += delta_t * nu_a;
-      Xsig_pred(3, i) += 0.5*delta_t*delta_t*nu_psid;
-      Xsig_pred(4, i) += delta_t * nu_psid;
+      Xsig_pred_(0, i) += 0.5*delta_t*delta_t*cos(phi)*nu_a;
+      Xsig_pred_(1, i) += 0.5*delta_t*delta_t*sin(phi)*nu_a;
+      Xsig_pred_(2, i) += delta_t * nu_a;
+      Xsig_pred_(3, i) += 0.5*delta_t*delta_t*nu_psid;
+      Xsig_pred_(4, i) += delta_t * nu_psid;
   }
 
   // Predict state.
@@ -186,7 +186,7 @@ void UKF::Prediction(double delta_t) {
   P_.fill(0);
   for (int i = 0; i < 2*n_aug_+1; i++)
   {
-    VectorXd diff = Xsig_pred.col(i) - x_;
+    VectorXd diff = Xsig_pred_.col(i) - x_;
     while(diff(3)>M_PI) diff(3) -= 2*M_PI; // Angle should be [-pi, pi].
     while(diff(3)<-M_PI) diff(3) += 2*M_PI;  // Angle should be [-pi, pi].
     P_ += weights(i)*diff*diff.transpose();
