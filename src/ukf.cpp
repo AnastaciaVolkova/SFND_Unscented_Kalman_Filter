@@ -94,6 +94,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     }
     is_initialized_ = true;
     time_us_ = meas_package.timestamp_;
+    n_x_ = x_.size();
+    n_aug_ = n_x_ + 2; // Take into account process noise.
   } else {
     double dt = static_cast<double>(time_us_ - meas_package.timestamp_)*1e-6;
     Prediction(dt); // Predict state based on process model.
