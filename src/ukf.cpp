@@ -79,6 +79,11 @@ UKF::UKF()
   R_radar_(0, 0) = std_radr_ * std_radr_;
   R_radar_(1, 1) = std_radphi_ * std_radphi_;
   R_radar_(2, 2) = std_radrd_ * std_radrd_;
+
+  // Set weights for each sigma point.
+  weights_ = VectorXd(2 * n_aug_ + 1);
+  weights_(0) = lambda_ / (lambda_ + n_aug_);
+  weights_.tail(2 * n_aug_).fill(0.5 / (lambda_ + n_aug_));
 }
 
 UKF::~UKF() {}
@@ -167,11 +172,6 @@ void UKF::Prediction(double delta_t)
     Xsig_aug.col(c) = x_aug + sqrt(lambda_ + n_aug_) * P_aug_sqrt.col(c - 1);
     Xsig_aug.col(c + n_aug_) = x_aug - sqrt(lambda_ + n_aug_) * P_aug_sqrt.col(c - 1);
   }
-
-  // Set weights for each sigma point.
-  weights_ = VectorXd(2 * n_aug_ + 1);
-  weights_(0) = lambda_ / (lambda_ + n_aug_);
-  weights_.tail(2 * n_aug_).fill(0.5 / (lambda_ + n_aug_));
 
   // Matrix with predicted sigma points as columns.
   Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
