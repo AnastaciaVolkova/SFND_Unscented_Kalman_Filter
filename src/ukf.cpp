@@ -15,11 +15,17 @@ UKF::UKF()
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
 
+  n_x_ = 5; // State dimension
+  n_z_lidar_ = 2; // Space dimension of lidar measurement (px, py)
+  n_z_radar_ = 3; // Space dimension of radar measurement (rho, phi, rho_d)
+  n_aug_ = n_x_ + 2; // Take into account process noise.
+  lambda_ = 3 - n_aug_; // Define spreading parameter.
+
   // initial state vector
-  x_ = VectorXd(5);
+  x_ = VectorXd(n_x_);
 
   // initial covariance matrix
-  P_ = MatrixXd(5, 5);
+  P_ = MatrixXd(n_x_, n_x_);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
   std_a_ = 1.67; // 2*sigma = 3.33 Assume 95% cars decrease speed from 60 km/h to 0 in 5 sec (and vice versa)
@@ -55,11 +61,6 @@ UKF::UKF()
    * TODO: Complete the initialization. See ukf.h for other member properties.
    * Hint: one or more values initialized above might be wildly off...
    */
-  n_x_ = 5;
-  n_z_lidar_ = 2;
-  n_z_radar_ = 3;
-  n_aug_ = n_x_ + 2; // Take into account process noise.
-  lambda_ = 3 - n_aug_; // Define spreading parameter.
 
   // Set state vector.
   x_ = VectorXd(n_x_);
@@ -115,8 +116,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
   }
   else
   {
+    double dt = static_cast<double>(meas_package.timestamp_ - time_us_) * 1e-6;
     time_us_ = meas_package.timestamp_;
-    double dt = static_cast<double>(time_us_ - meas_package.timestamp_) * 1e-6;
     Prediction(dt); // Predict state based on process model.
     if (meas_package.sensor_type_ == MeasurementPackage::RADAR)
       UpdateRadar(meas_package);

@@ -99,7 +99,7 @@ class UKF {
   // Space dimension of lidar measurement (px, py)
   int n_z_lidar_;
 
-  // Space dimension of radar measurement (rho, phi, rho_d).
+  // Space dimension of radar measurement (rho, phi, rho_d)
   int n_z_radar_;
 
   // Augmented state dimension
