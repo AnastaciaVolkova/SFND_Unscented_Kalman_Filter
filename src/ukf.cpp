@@ -77,7 +77,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
       // Transform radar measurements to state vector.
       // state vector: [pos1 pos2 vel_abs yaw_angle yaw_rate] in SI units and rad
 
-      x_ << rho*cos(phi), rho*sin(phi), rho_d, phi, 0;
+      x_ << rho*cos(phi), rho*sin(phi), rho_d, 0, 0;
 
       // Set state covariance matrix.
       P_.fill(0.0);
@@ -91,24 +91,25 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
       P_.fill(0.0);
       P_(0, 0) = std_laspx_*std_laspx_;
       P_(1, 1) = std_laspy_*std_laspy_;
-      P_(2, 2) = 100;
-      P_(3, 3) = 100;
-      P_(4, 4) = 100;
+      P_(2, 2) = 1;
+      P_(3, 3) = 1;
+      P_(4, 4) = 1;
     } else {
       throw std::runtime_error("Invalid sensor type");
     }
     is_initialized_ = true;
     lambda_ = 3 - n_aug_; // Define spreading parameter.
+  } else {
+    time_us_ = meas_package.timestamp_;
+    double dt = static_cast<double>(time_us_ - meas_package.timestamp_)*1e-6;
+    Prediction(dt); // Predict state based on process model.
+    if (meas_package.sensor_type_ == MeasurementPackage::RADAR)
+      UpdateRadar(meas_package);
+    else if (meas_package.sensor_type_ == MeasurementPackage::LASER)
+      UpdateLidar(meas_package);
+    else
+      throw std::runtime_error("Invalid sensor type");
   }
-  time_us_ = meas_package.timestamp_;
-  double dt = static_cast<double>(time_us_ - meas_package.timestamp_)*1e-6;
-  Prediction(dt); // Predict state based on process model.
-  if (meas_package.sensor_type_ == MeasurementPackage::RADAR)
-    UpdateRadar(meas_package);
-  else if (meas_package.sensor_type_ == MeasurementPackage::LASER)
-    UpdateLidar(meas_package);
-  else
-    throw std::runtime_error("Invalid sensor type");
 }
 
 void UKF::Prediction(double delta_t) {
