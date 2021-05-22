@@ -67,10 +67,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     n_x_ = 5;
     n_aug_ = n_x_ + 2; // Take into account process noise.
     x_ = VectorXd(n_x_);
+    x_.fill(0);
     if (meas_package.sensor_type_ == MeasurementPackage::RADAR){
-      use_laser_ = false;
-      use_radar_ = true;
-
       // Get radar measurements.
       double rho = meas_package.raw_measurements_[0]; // Radius measurement (m).
       double phi = meas_package.raw_measurements_[1]; // Angle measurement (rad).
@@ -93,22 +91,24 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
       P_.fill(0.0);
       P_(0, 0) = std_laspx_*std_laspx_;
       P_(1, 1) = std_laspy_*std_laspy_;
+      P_(2, 2) = 100;
+      P_(3, 3) = 100;
+      P_(4, 4) = 100;
     } else {
       throw std::runtime_error("Invalid sensor type");
     }
     is_initialized_ = true;
     time_us_ = meas_package.timestamp_;
     lambda_ = 3 - n_aug_; // Define spreading parameter.
-  } else {
-    double dt = static_cast<double>(time_us_ - meas_package.timestamp_)*1e-6;
-    Prediction(dt); // Predict state based on process model.
-    if (meas_package.sensor_type_ == MeasurementPackage::RADAR)
-      UpdateRadar(meas_package);
-    else if (meas_package.sensor_type_ == MeasurementPackage::LASER)
-      UpdateLidar(meas_package);
-    else
-      throw std::runtime_error("Invalid sensor type");
   }
+  double dt = static_cast<double>(time_us_ - meas_package.timestamp_)*1e-6;
+  Prediction(dt); // Predict state based on process model.
+  if (meas_package.sensor_type_ == MeasurementPackage::RADAR)
+    UpdateRadar(meas_package);
+  else if (meas_package.sensor_type_ == MeasurementPackage::LASER)
+    UpdateLidar(meas_package);
+  else
+    throw std::runtime_error("Invalid sensor type");
 }
 
 void UKF::Prediction(double delta_t) {
@@ -120,9 +120,11 @@ void UKF::Prediction(double delta_t) {
 
   // Augmented state vector.
   VectorXd x_aug = VectorXd(n_aug_);
+  x_aug.fill(0);
 
   // Augmented state covariance.
   MatrixXd P_aug = MatrixXd(n_aug_, n_aug_);
+  P_aug.fill(0);
 
   // Sigma points matrix.
   MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
@@ -229,7 +231,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
 
   MatrixXd R = MatrixXd(n_z, n_z);
   R  << std_laspx_*std_laspx_, 0,
-  std_laspy_*std_laspy_, 0,
+  0, std_laspy_*std_laspy_;
   S = S + R;
 
   // Cross correlation matrix Tc.
