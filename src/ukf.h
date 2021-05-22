@@ -57,7 +57,13 @@ class UKF {
   // state covariance matrix
   Eigen::MatrixXd P_;
 
-  // predicted sigma points matrix
+  // Lidar measurement covariance noise
+  Eigen::MatrixXd R_lidar_;
+
+  // Radar measurement covariance noise
+  Eigen::MatrixXd R_radar_;
+
+  // Predicted sigma points matrix
   Eigen::MatrixXd Xsig_pred_;
 
   // time when the state is true, in us
@@ -89,6 +95,12 @@ class UKF {
 
   // State dimension
   int n_x_;
+
+  // Space dimension of lidar measurement (px, py)
+  int n_z_lidar_;
+
+  // Space dimension of radar measurement (rho, phi, rho_d).
+  int n_z_radar_;
 
   // Augmented state dimension
   int n_aug_;
