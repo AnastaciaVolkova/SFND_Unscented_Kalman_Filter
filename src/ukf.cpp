@@ -98,9 +98,9 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
       throw std::runtime_error("Invalid sensor type");
     }
     is_initialized_ = true;
-    time_us_ = meas_package.timestamp_;
     lambda_ = 3 - n_aug_; // Define spreading parameter.
   }
+  time_us_ = meas_package.timestamp_;
   double dt = static_cast<double>(time_us_ - meas_package.timestamp_)*1e-6;
   Prediction(dt); // Predict state based on process model.
   if (meas_package.sensor_type_ == MeasurementPackage::RADAR)
