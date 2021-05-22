@@ -344,13 +344,13 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
     VectorXd diff_x = Xsig_pred_.col(i) - x_;
     VectorXd diff_z = Zsig.col(i) - z_pred;
     while (diff_x(1) < -M_PI)
-      diff_x(1) = +2 * M_PI;
+      diff_x(1) += 2 * M_PI;
     while (diff_x(1) > M_PI)
-      diff_x(1) = -2 * M_PI;
+      diff_x(1) -= 2 * M_PI;
     while (diff_z(1) < -M_PI)
-      diff_z(1) = +2 * M_PI;
+      diff_z(1) += 2 * M_PI;
     while (diff_z(1) > M_PI)
-      diff_z(1) = -2 * M_PI;
+      diff_z(1) -= 2 * M_PI;
     Tc += weights_(i) * diff_x * diff_z.transpose();
   }
 
@@ -363,9 +363,9 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   z << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1], meas_package.raw_measurements_[2];
   VectorXd z_diff = z - z_pred;
   while (z_diff(1) < -M_PI)
-    z_diff(1) = +2 * M_PI;
+    z_diff(1) += 2 * M_PI;
   while (z_diff(1) > M_PI)
-    z_diff(1) = -2 * M_PI;
+    z_diff(1) -= 2 * M_PI;
 
   x_ = x_ + K * z_diff;
 
