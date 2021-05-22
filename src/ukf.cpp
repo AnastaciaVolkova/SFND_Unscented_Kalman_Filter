@@ -1,5 +1,6 @@
 #include "ukf.h"
 #include "Eigen/Dense"
+#include <iostream>
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -31,7 +32,7 @@ UKF::UKF()
   std_a_ = 1.67; // 2*sigma = 3.33 Assume 95% cars decrease speed from 60 km/h to 0 in 5 sec (and vice versa)
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 0.08; //Assume 95% cars change angle ~10 grad/s^2
+  std_yawdd_ = 0.5; //[rad/s^2] Assume 95% cars change angle ~52 grad/s^2
 
   /**
    * DO NOT MODIFY measurement noise values below.
@@ -66,8 +67,12 @@ UKF::UKF()
   x_ = VectorXd(n_x_);
   x_.fill(0);
 
+  time_us_ = 0.0;
+
   // Set state covariance matrix.
   P_ = MatrixXd::Identity(n_x_, n_x_);
+  P_(3,3) = std_laspx_*std_laspy_;//Stands for angle
+  P_(4,4) = std_laspx_*std_laspy_;
 
   // Lidar measurement covariance noise
   R_lidar_ = MatrixXd::Zero(n_z_lidar_, n_z_lidar_);
